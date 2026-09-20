@@ -618,7 +618,7 @@ O cálculo de R² contempla inclusive casos onde o modelo é pior que utilizar s
 
 ## 🎮 Como Executar
 
-### Execução via Docker (Recomendado)
+### Execução via Docker
 
 A aplicação foi empacotada em um contêiner Linux leve configurado com *multi-stage build* e permissões *rootless* para garantir segurança e isolamento total de dependências.
 
@@ -626,25 +626,23 @@ A aplicação foi empacotada em um contêiner Linux leve configurado com *multi-
 * **Linux / macOS:** Docker Engine instalado.
 * **Windows:** Instale o [Docker Desktop](https://www.docker.com/products/docker-desktop/). Durante a instalação, mantenha a opção **"Use WSL 2 instead of Hyper-V"** ativada. O WSL 2 utiliza um kernel Linux real, garantindo máxima performance e compatibilidade com o contêiner.
 
-#### Opção 1: Executar a imagem pré-construída (Mais rápido)
-Basta executar o comando abaixo no seu terminal (ou PowerShell no Windows) para baixar e rodar a imagem diretamente do Docker Hub:
+#### Opção 1: Construir a imagem desta versão
+
+Esta é a opção adequada para executar exatamente o código presente no fork:
+
+```bash
+docker build -t ceub-mec-sistematizacao:local .
+docker run -d --name mec-stats -p 8501:8501 ceub-mec-sistematizacao:local
+```
+
+#### Opção 2: Imagem publicada pelo projeto de origem
+
+A imagem abaixo pertence à versão `0.1.0` publicada pelo projeto de origem e
+pode não conter as alterações deste fork:
 
 ```bash
 docker run -d --name mec-stats -p 8501:8501 iagobgc/ceub-mec-sistematizacao:0.1.0
 ```
-
-#### Opção 2: Construir a imagem localmente
-Caso queira modificar o código e compilar a sua própria imagem a partir do repositório clonado:
-
-1. **Construa a imagem:**
-   ```bash
-   docker build -t ceub-mec-sistematizacao:0.1.0 .
-   ```
-
-2. **Inicie o contêiner em segundo plano:**
-   ```bash
-   docker run -d --name mec-stats -p 8501:8501 ceub-mec-sistematizacao:0.1.0
-   ```
 
 #### Acessando a Aplicação
 Independente da opção escolhida, após iniciar o contêiner, abra o seu navegador e acesse:
