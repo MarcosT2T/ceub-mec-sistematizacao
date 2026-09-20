@@ -483,10 +483,6 @@ na relação `spkts → dpkts` entre Normal, Exploits e Fuzzers sob TCP. Uma an�
 de sensibilidade até P99 verifica quais coeficientes permanecem estáveis quando
 a influência da cauda superior é examinada.
 
-### Módulo 5:
-
-Correlação e Regressão Linear.
-
 ---
 
 ## 🧪 Testes Executados
