@@ -3,7 +3,7 @@
 # ==============================================================================
 # É um "Linux container": a imagem roda o kernel Linux, não o do host.
 # ==============================================================================
-FROM python:3.14-slim AS builder
+FROM python:3.12-slim AS builder
 
 # build-essential = compilador C/C++ (gcc, make, etc). se algum pacote não tiver wheel pronta, o pip vai conseguir compilar do zero.
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -23,11 +23,11 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Importante: usamos a MESMA tag de imagem base (python:3.14-slim) nas duas
+# Importante: usamos a MESMA tag de imagem base (python:3.12-slim) nas duas
 # etapas. O ambiente virtual criado na etapa anterior guarda links simbólicos
-# apontando para o Python "de sistema" (ex: /usr/local/bin/python3.14). Se a
+# apontando para o Python "de sistema" (ex: /usr/local/bin/python3.12). Se a
 # etapa final usasse uma imagem base diferente, esses links quebrariam.
-FROM python:3.14-slim
+FROM python:3.12-slim
 
 # Cria um usuário e grupo dedicados, sem privilégios de root, para rodar a
 # aplicação para diminuir a superficie de ataque caso o contêiner seja atacado.

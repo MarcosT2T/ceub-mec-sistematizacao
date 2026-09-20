@@ -3,11 +3,15 @@ Verifica se o núcleo e a interface respeitam a regra de ouro do projeto.
 
 Regras verificadas:
 
-1. src/minhastats.py não pode importar NumPy, Pandas, SciPy ou statistics.
+1. src/nucleo/minhastats.py não pode importar NumPy, Pandas, SciPy ou
+   statistics.
 2. src/app.py não deve calcular as medidas estatísticas exigidas por meio
    de atalhos de Pandas, NumPy, SciPy ou statistics.
 3. NumPy e Pandas ainda podem ser usados na interface para carregamento,
    preparação dos dados, simulação, criação de eixos e visualização.
+4. Os arquivos de validação podem usar bibliotecas consolidadas somente para
+   comparar, de forma explícita, o núcleo próprio com referências externas.
+5. O minieditor não pode chamar eval(), exec() ou compile().
 
 Execute a partir da raiz:
 
@@ -23,8 +27,22 @@ from pathlib import Path
 
 
 RAIZ_PROJETO = Path(__file__).resolve().parent
-ARQUIVO_NUCLEO = RAIZ_PROJETO / "src" / "minhastats.py"
-ARQUIVO_APP = RAIZ_PROJETO / "src" / "app.py"
+ARQUIVO_NUCLEO = RAIZ_PROJETO / "src" / "nucleo" / "minhastats.py"
+ARQUIVOS_INTERFACE = (
+    RAIZ_PROJETO / "src" / "app.py",
+    RAIZ_PROJETO / "src" / "interface" / "pagina_inicial.py",
+    RAIZ_PROJETO / "src" / "interface" / "modulo_2.py",
+    RAIZ_PROJETO / "src" / "interface" / "modulo_3.py",
+    RAIZ_PROJETO / "src" / "interface" / "modulo_4.py",
+    RAIZ_PROJETO / "src" / "interface" / "modulo_5.py",
+    RAIZ_PROJETO / "src" / "interface" / "modulo_6.py",
+)
+ARQUIVO_VALIDACAO = (
+    RAIZ_PROJETO / "src" / "interface" / "pagina_validacao.py"
+)
+ARQUIVO_EDITOR = (
+    RAIZ_PROJETO / "src" / "interface" / "editor_validacao.py"
+)
 
 BIBLIOTECAS_PROIBIDAS_NO_NUCLEO = {
     "numpy",
@@ -258,6 +276,78 @@ def verificar_calculos_app(caminho: Path) -> list[str]:
     return problemas
 
 
+def verificar_pagina_validacao(caminho: Path) -> list[str]:
+    """Confirma a separação explícita entre cálculo próprio e referência."""
+    arvore = carregar_arvore(caminho)
+    importacoes = set()
+    funcoes = set()
+
+    for no in ast.walk(arvore):
+        if isinstance(no, ast.Import):
+            importacoes.update(nome.name.split(".")[0] for nome in no.names)
+        elif isinstance(no, ast.ImportFrom) and no.module:
+            importacoes.add(no.module.split(".")[0])
+            importacoes.update(nome.name.split(".")[0] for nome in no.names)
+        elif isinstance(no, ast.FunctionDef):
+            funcoes.add(no.name)
+
+    problemas = []
+    for biblioteca in ("minhastats", "numpy", "scipy", "statistics"):
+        if biblioteca not in importacoes:
+            problemas.append(
+                f"a página de validação não importa {biblioteca}"
+            )
+
+    funcoes_esperadas = {
+        "_codigo_funcao",
+        "executar_validacao_funcao",
+        "resultados_equivalentes",
+        "validar_catalogo_completo",
+    }
+    for funcao in sorted(funcoes_esperadas - funcoes):
+        problemas.append(f"função de comparação ausente: {funcao}()")
+
+    return problemas
+
+
+def verificar_editor_validacao(caminho: Path) -> list[str]:
+    """Confirma referências explícitas e impede execução arbitrária de código."""
+    arvore = carregar_arvore(caminho)
+    importacoes = set()
+    funcoes = set()
+    problemas = []
+
+    for no in ast.walk(arvore):
+        if isinstance(no, ast.Import):
+            importacoes.update(nome.name.split(".")[0] for nome in no.names)
+        elif isinstance(no, ast.ImportFrom) and no.module:
+            importacoes.add(no.module.split(".")[0])
+            importacoes.update(nome.name.split(".")[0] for nome in no.names)
+        elif isinstance(no, ast.FunctionDef):
+            funcoes.add(no.name)
+        elif isinstance(no, ast.Call) and isinstance(no.func, ast.Name):
+            if no.func.id in {"eval", "exec", "compile"}:
+                problemas.append(
+                    f"linha {no.lineno}: execução arbitrária com {no.func.id}()"
+                )
+
+    for biblioteca in ("minhastats", "numpy", "scipy", "statistics"):
+        if biblioteca not in importacoes:
+            problemas.append(f"o minieditor não importa {biblioteca}")
+
+    funcoes_esperadas = {
+        "carregar_json_entradas",
+        "entradas_padrao",
+        "executar",
+        "montar_terminal",
+        "validar_entradas",
+    }
+    for funcao in sorted(funcoes_esperadas - funcoes):
+        problemas.append(f"função do minieditor ausente: {funcao}()")
+
+    return problemas
+
+
 def exibir_resultado(
     caminho: Path,
     problemas: list[str],
@@ -297,8 +387,18 @@ def main() -> int:
             ARQUIVO_NUCLEO
         )
 
-        problemas_app = verificar_calculos_app(
-            ARQUIVO_APP
+        problemas_interfaces = [
+            (
+                caminho,
+                verificar_calculos_app(caminho),
+            )
+            for caminho in ARQUIVOS_INTERFACE
+        ]
+        problemas_validacao = verificar_pagina_validacao(
+            ARQUIVO_VALIDACAO
+        )
+        problemas_editor = verificar_editor_validacao(
+            ARQUIVO_EDITOR
         )
 
     except FileNotFoundError as erro:
@@ -322,12 +422,20 @@ def main() -> int:
         problemas_nucleo,
     )
 
-    app_ok = exibir_resultado(
-        ARQUIVO_APP,
-        problemas_app,
+    resultados_interfaces = [
+        exibir_resultado(caminho, problemas)
+        for caminho, problemas in problemas_interfaces
+    ]
+    interfaces_ok = all(resultados_interfaces)
+    validacao_ok = exibir_resultado(
+        ARQUIVO_VALIDACAO,
+        problemas_validacao,
     )
-
-    if nucleo_ok and app_ok:
+    editor_ok = exibir_resultado(
+        ARQUIVO_EDITOR,
+        problemas_editor,
+    )
+    if nucleo_ok and interfaces_ok and validacao_ok and editor_ok:
         print()
         print("Regra de ouro respeitada.")
 

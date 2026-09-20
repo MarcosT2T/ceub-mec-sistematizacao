@@ -1,0 +1,23 @@
+# Ambientes virtuais locais — sempre reconstruídos por requirements.txt
+.venv/
+venv/
+
+# Cache de bytecode e artefatos de teste
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+
+# Controle de versão e configuração local
+.git/
+.gitignore
+.env
+.streamlit/secrets.toml
+
+# Documentação que não participa da imagem de execução
+README.md
+RELATORIO.md
+
+# Arquivos de construção
+Dockerfile*
+.dockerignore
