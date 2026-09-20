@@ -1,7 +1,5 @@
 # ==============================================================================
-# Dockerfile — ceub-mec-sistematizacao
-# ==============================================================================
-# É um "Linux container": a imagem roda o kernel Linux, não o do host.
+# Dockerfile — ceub-mec-sistematizacao. (Linux container)
 # ==============================================================================
 FROM python:3.12-slim AS builder
 
@@ -23,7 +21,28 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Importante: usamos a MESMA tag de imagem base (python:3.12-slim) nas duas
+# (OPCIONAL) — "test": portão de qualidade antes da imagem final
+#
+# docker build --target test -t ceub-mec-sistematizacao:test .
+#
+# Se qualquer um dos 237 testes falhar, OU se a regra de ouro do projeto for
+# violada, o RUN abaixo retorna código de saída diferente de zero 
+# e o build para exatamente aqui — antes de qualquer imagem de produção ser gerada.
+# ---------------------------------------------------------------------------
+FROM builder AS test
+ 
+COPY requirements-dev.txt .
+RUN pip install --no-cache-dir -r requirements-dev.txt
+ 
+COPY src/ ./src/
+COPY tests/ ./tests/
+COPY data/ ./data/
+COPY pytest.ini verificar_regra_de_ouro.py ./
+ 
+RUN python -m pytest -q \
+    && python verificar_regra_de_ouro.py
+
+# Importante: usa a MESMA tag de imagem base (python:3.12-slim) nas duas
 # etapas. O ambiente virtual criado na etapa anterior guarda links simbólicos
 # apontando para o Python "de sistema" (ex: /usr/local/bin/python3.12). Se a
 # etapa final usasse uma imagem base diferente, esses links quebrariam.
@@ -77,17 +96,6 @@ EXPOSE 8501
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
     CMD python -c "import urllib.request as u; u.urlopen('http://localhost:8501/_stcore/health', timeout=3)" || exit 1
 
-# Forma "exec" (array JSON), não "shell" (string solta). Na forma exec, o
-# processo do streamlit roda como PID 1 do container e recebe corretamente
-# sinais como SIGTERM quando você faz `docker stop` — na forma shell, um `/bin/sh`
-# fica no meio do caminho e o sinal pode não chegar até o Streamlit, fazendo o
-# `docker stop` esperar o timeout inteiro (10s) e matar à força (SIGKILL).
-#
-# --server.address=0.0.0.0: sem isso, o Streamlit escuta só em 127.0.0.1
-#   DENTRO do container, e nenhuma porta mapeada no host conseguiria alcançá-lo.
-# --server.headless=true: impede o Streamlit de tentar abrir um navegador ou
-#   pedir e-mail de cadastro na primeira execução (o container não tem essas
-#   coisas, e isso travaria a inicialização esperando input).
 CMD ["streamlit", "run", "src/app.py", \
      "--server.port=8501", \
      "--server.address=0.0.0.0", \
